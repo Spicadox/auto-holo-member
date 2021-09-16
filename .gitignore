@@ -2,5 +2,5 @@
 !.gitignore
 !index.py
 !member_link.py
-!private_download.py
-!ytarchive-raw.py
+!live_download.py
+!ytarchive.py
