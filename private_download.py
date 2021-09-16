@@ -1,24 +1,23 @@
-import os
 import subprocess
+import os
 
 def download(files):
-    print(files)
-    #Maybe only get the last file since its the most recent?
-    for file in files:
+    for file in reversed(files):
         if '.json' in file:
+            file = os.getcwd() + '/' + file
             print("Found ", file)
-
-            command_list = ['start', 'cmd', '/k']
-            command_list += ["ytarchive-raw.py", '-t', '6', '-d', '-i', file]
+            command_list = ['lxterminal', '-e', 'python3']
+            command_list += ['/media/pi/PICTURES/auto-ytarchive-raw/ytarchive-raw.py', '-t',
+                             '4', '-d', '-i', file]
 
             try:
                 print("[INFO] Downloading Video")
-                output = subprocess.run(command_list, shell=True)
+                output = subprocess.run(command_list)
                 # If theres an error then this ensures a redownload, but only works if the program crashes by itself immediately
                 # print("[Debug] Output: ", output)
                 print("[Debug] Immediate Return Code:", output.returncode)
             except Exception as e:
-                print(e)
                 print("[INFO] Retry Download")
                 output = subprocess.run(command_list)
+
 
