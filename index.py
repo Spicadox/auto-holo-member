@@ -3,7 +3,7 @@ import json
 import os
 from member_link import member_links
 import subprocess
-import private_download
+import live_download
 
 FETCHED_JSON = "fetched.json"
 fetched = {}
