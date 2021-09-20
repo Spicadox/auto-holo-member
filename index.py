@@ -2,6 +2,7 @@ import time
 import json
 import os
 from member_link import member_links
+import subprocess
 import live_download
 
 FETCHED_JSON = "fetched.json"
@@ -68,8 +69,13 @@ def main():
             fetched[link] = {'downloaded': 'false',
                             'timestamp': time.time()}
     save()
-
-    download_result = live_download.download(fetched.keys())
+    # Get video_id's that have not been downloaded
+    download_id = []
+    for link in fetched:
+        if fetched[link]['downloaded'] == 'false':
+            download_id.append(link)
+    # Download the undownloaded the member video
+    download_result = live_download.download(download_id)
     for download in download_result:
         if fetched[download]:
             # set fetched video's downloaded key to download's key
@@ -81,9 +87,9 @@ if __name__ == '__main__':
     clear_link()
     while True:
         start_time = time.time()
-        if time.time() - start_time> 43200:
+        if time.time() - start_time > 43200:
             clear_link()
             start_time = time.time()
         main()
         # change sleep time to 1 min maybe
-        time.sleep(30)
+        time.sleep(300)
