@@ -2,7 +2,6 @@ import time
 import json
 import os
 from member_link import member_links
-import subprocess
 import live_download
 
 FETCHED_JSON = "fetched.json"
@@ -35,18 +34,18 @@ def clear_link():
 
         removal = []
         for link in fetched.keys():
-            print(time.time() - fetched[link]['timestamp'])
             if time.time() - fetched[link]['timestamp'] > 43200:
                 removal.append(link)
         for link in removal:
             print("Expired, Removing " + link)
             del fetched[link]
             print(fetched)
-    # Saving json
-    with open(FETCHED_JSON, "w", encoding="utf8") as f:
-        print(fetched)
-        json.dump(fetched, f, indent=4, ensure_ascii=False)
-        print("Saving json")
+    # Saving json if links can be removed
+    if len(removal) > 0:
+        with open(FETCHED_JSON, "w", encoding="utf8") as f:
+            print(fetched)
+            json.dump(fetched, f, indent=4, ensure_ascii=False)
+            print("Saving json")
 
 
 if os.path.isfile(FETCHED_JSON):

@@ -9,7 +9,7 @@ def download(video_id):
                          "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)",
                          '--add-metadata', '-t', '--vp9', '--write-description', '--write-thumbnail', '--threads', '2',
                          '-w']
-        command_list += ['yt-dlp', video]
+        command_list += [video]
         # remove later test line vvvvv
         # command_list += ['yt-dlp', '--cookies', 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt', video]
         try:

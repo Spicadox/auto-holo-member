@@ -103,7 +103,7 @@ def member_links():
                     link = a_element['href']
             # Can't find link element possibly due to email just containing member post's text
             except:
-                print("\nCan not find element with link\n")
+                print("Can not find element with link\n")
                 continue
             # Get video id and reconstruct video url
             id_re = re.compile(r"(&u=/watch%3Fv%3D)(.{11})")
