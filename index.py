@@ -36,7 +36,7 @@ def clear_link():
         removal = []
         for link in fetched.keys():
             print(time.time() - fetched[link]['timestamp'])
-            if time.time() - fetched[link]['timestamp'] > 43200:
+            if time.time() - fetched[link]['timestamp'] > 14400:
                 removal.append(link)
         for link in removal:
             print("Expired, Removing " + link)
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     clear_link()
     while True:
         start_time = time.time()
-        if time.time() - start_time > 43200:
+        if time.time() - start_time > 14400:
             clear_link()
             start_time = time.time()
         main()
