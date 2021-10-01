@@ -74,13 +74,14 @@ def main():
     for link in fetched:
         if fetched[link]['downloaded'] == 'false':
             download_id.append(link)
-    # Download the undownloaded the member video
-    download_result = live_download.download(download_id)
-    for download in download_result:
-        if fetched[download]:
-            # set fetched video's downloaded key to download's key
-            fetched[download]['downloaded'] = download_result[download]
-    save()
+    # Download the undownloaded the member video if there are videos to download
+    if len(download_id) != 0:
+        download_result = live_download.download(download_id)
+        for download in download_result:
+            if fetched[download]:
+                # set fetched video's downloaded key to download's key
+                fetched[download]['downloaded'] = download_result[download]
+        save()
 
 
 if __name__ == '__main__':
