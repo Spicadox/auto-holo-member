@@ -68,9 +68,10 @@ def member_links():
     # print(results)
     messages = results.get('messages', [])
     member_notif = []
-    for message in messages[0:30]:
+    # Get the latest 10 messages/emails
+    for message in messages[0:10]:
         msg = service.users().messages().get(userId='me', id=message['id']).execute()
-        # test for member and members
+        # Find email messages(up to 10) that only contain member keywords
         # Optionally instead of regex decode result to utf-8
         if re.search('(Members|Member|member|members)', msg['snippet']) or re.search('(メンバ|メン限)', msg['snippet']):
             print(msg['snippet'])
