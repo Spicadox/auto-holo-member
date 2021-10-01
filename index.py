@@ -92,5 +92,6 @@ if __name__ == '__main__':
             start_time = time.time()
         main()
         # change sleep time to 1 min maybe
-        time.sleep(300)
         print("Sleeping for 300 seconds")
+        time.sleep(300)
+
