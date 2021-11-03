@@ -5,7 +5,7 @@ def download(video_id):
     for video in video_id:
         # /c - close console after execution
         command_list = ['start', 'cmd', '/c']
-        command_list += ['ytarchive.py', '--cookies', 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt', '-o',
+        command_list += ['ytarchive.exe', '--cookies', 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt', '-o',
                          "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)",
                          '--add-metadata', '-t', '--vp9', '--write-description', '--write-thumbnail', '--threads', '2',
                          '-w']

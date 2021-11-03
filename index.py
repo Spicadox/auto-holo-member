@@ -83,12 +83,12 @@ def main():
     # Get video_id's that have not been downloaded
     download_id = []
     for link in fetched:
-        try:
-            print("Downloading json...")
-            process = create_json(fetched[link]['id'])
-            print("Return Code: ", process.returncode)
-        except Exception as e:
-            print(e, "\nError creating Json")
+        # try:
+        #     print("Downloading json...")
+        #     process = create_json(fetched[link]['id'])
+        #     print("Return Code: ", process.returncode)
+        # except Exception as e:
+        #     print(e, "\nError creating Json")
 
         if fetched[link]['downloaded'] == 'false':
             download_id.append(link)
