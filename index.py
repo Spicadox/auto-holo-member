@@ -4,6 +4,8 @@ import json
 import os
 from member_link import member_links
 import live_download
+import requests
+import re
 
 FETCHED_JSON = "fetched.json"
 fetched = {}
@@ -72,8 +74,20 @@ def create_json(id):
     command_args += ['--skip-download', '--write-info-json', '-o', f'{os.getcwd()}\\jsons\\{id}', id]
     return subprocess.run(command_args, shell=True)
 
-def main():
-    links = member_links()
+def get_links():
+    req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live")
+    if req.status_code != 200:
+        links = member_links()
+        return links
+    data = req.json()
+    video_ids = []
+    for stream in data:
+        if re.search('(Members|Member|member|members)', stream['title']) or re.search('(メンバ|メン限)', stream['title']):
+            video_ids.append(stream['id'])
+    return video_ids
+
+def download():
+    links = get_links()
     for link in links:
         if link not in fetched.keys():
             fetched[link] = {'id': link[-11:],
@@ -109,7 +123,7 @@ if __name__ == '__main__':
         if time.time() - start_time > 14400:
             clear_link()
             start_time = time.time()
-        main()
+        download()
         # change sleep time to 1 min maybe
         print("Sleeping for 300 seconds")
         time.sleep(300)
