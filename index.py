@@ -28,9 +28,11 @@ fetched = {
     }
 }
 """
+
+
 def save():
     with open(FETCHED_JSON, "w", encoding="utf8") as f:
-        print(fetched)
+        print("Fetched: ", fetched)
         json.dump(fetched, f, indent=4, ensure_ascii=False)
         print("Saving json")
 
@@ -69,22 +71,31 @@ else:
     fetched = {}
     save()
 
+
 def create_json(id):
     command_args = ['yt-dlp', '--cookies', 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt']
     command_args += ['--skip-download', '--write-info-json', '-o', f'{os.getcwd()}\\jsons\\{id}', id]
     return subprocess.run(command_args, shell=True)
 
+
 def get_links():
+    # Use holodex api to grab live streams
     req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live")
-    if req.status_code != 200:
+    req2 = requests.get(url="https://holodex.net/api/v2/live?org=Independents&status=live")
+    # If it fails then go back to the original method of scrapping gmail urls
+    if req.status_code != 200 or req2.status_code != 200:
         links = member_links()
         return links
     data = req.json()
+    data2 = req2.json()
+    combined_data = data + data2
     video_ids = []
-    for stream in data:
+    for stream in combined_data:
         if re.search('(Members|Member|member|members)', stream['title']) or re.search('(メンバ|メン限)', stream['title']):
             video_ids.append(stream['id'])
+    print("Member Videos: ", video_ids)
     return video_ids
+
 
 def download():
     links = get_links()
@@ -106,7 +117,7 @@ def download():
 
         if fetched[link]['downloaded'] == 'false':
             download_id.append(link)
-    # Download the undownloaded the member video if there are videos to download
+    # Download the undownloaded member video if there are videos to download
     if len(download_id) != 0:
         download_result = live_download.download(download_id)
         for download in download_result:
