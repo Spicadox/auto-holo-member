@@ -1,8 +1,6 @@
-import subprocess
 import time
 import json
 import os
-from member_link import member_links
 import live_download
 import requests
 import re
@@ -11,52 +9,45 @@ FETCHED_JSON = "fetched.json"
 fetched = {}
 """
 fetched = {
-    "https://youtube.com/watch?v=aXdH11XtikI": {
+    "kson ONAIR": {
         "id": "aXdH11XtikI",
         "downloaded": "false",
         "timestamp": 1631826398.5934074
     },
-    "https://youtube.com/watch?v=wri4zMtI5sc": {
+    "Mio Channel 大神ミオ": {
         "id": "wri4zMtI5sc",
         "downloaded": "false",
         "timestamp": 1631826398.5934074
-    },
-    "https://youtube.com/watch?v=ebI3UIEJ3YM": {
-        "id": "ebI3UIEJ3YM",
-        "downloaded": "false",
-        "timestamp": 1631829482.364617
     }
 }
 """
 
 
 def save():
-    with open(FETCHED_JSON, "w", encoding="utf8") as f:
-        print("Fetched: ", fetched)
-        json.dump(fetched, f, indent=4, ensure_ascii=False)
-        print("Saving json")
+    with open(FETCHED_JSON, "w", encoding="utf8") as writeFile:
+        json.dump(fetched, writeFile, indent=4, ensure_ascii=False)
 
 
 def clear_link():
-    with open(FETCHED_JSON, encoding="utf8") as f:
-        fetched = json.load(f)
+    with open(FETCHED_JSON, encoding="utf8") as readFile:
+        fetched_json = json.load(readFile)
 
         removal = []
-        for link in fetched.keys():
-            if time.time() - fetched[link]['timestamp'] > 14400:
+        for link in fetched_json.keys():
+            if time.time() - fetched_json[link]['timestamp'] > 14400:
                 removal.append(link)
         for link in removal:
-            print("Expired, Removing " + link)
-            if os.path.isfile(f"{os.getcwd()}\jsons\{id}.json"):
-                os.remove(f"{os.getcwd()}\jsons\{id}.info.json")
-            del fetched[link]
-            print(fetched)
+            # Remove link in global fetched and local fetched_json
+            if link in fetched.keys():
+                del fetched[link]
+            print("[INFO] Expired, Removing " + link)
+            del fetched_json[link]
+
     # Saving json if links can be removed
     if len(removal) > 0:
-        with open(FETCHED_JSON, "w", encoding="utf8") as f:
-            print(fetched)
-            json.dump(fetched, f, indent=4, ensure_ascii=False)
-            print("Saving json")
+        with open(FETCHED_JSON, "w", encoding="utf8") as writeFile:
+            json.dump(fetched_json, writeFile, indent=4, ensure_ascii=False)
+            print("[INFO] Saving json")
 
 
 if os.path.isfile(FETCHED_JSON):
@@ -64,7 +55,7 @@ if os.path.isfile(FETCHED_JSON):
         try:
             fetched = json.load(f)
         except json.JSONDecodeError as j:
-            print(j)
+            print(f"[ERROR] {j}")
             fetched = {}
             save()
 else:
@@ -72,70 +63,70 @@ else:
     save()
 
 
-def create_json(id):
-    command_args = ['yt-dlp', '--cookies', 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt']
-    command_args += ['--skip-download', '--write-info-json', '-o', f'{os.getcwd()}\\jsons\\{id}', id]
-    return subprocess.run(command_args, shell=True)
-
-
 def get_links():
+    # Channel IDs for other channels i.e. kson, nayuta
+    other_channel_ids = ["UC9ruVYPv7yJmV0Rh0NKA-Lw", "UCmhtmUBjkXOAetnaDq-XJ1g"]
     # Use holodex api to grab live streams
-    req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live")
-    req2 = requests.get(url="https://holodex.net/api/v2/live?org=Independents&status=live")
-    # If it fails then go back to the original method of scrapping gmail urls
-    if req.status_code != 200 or req2.status_code != 200:
-        links = member_links()
-        return links
-    data = req.json()
-    data2 = req2.json()
-    combined_data = data + data2
-    video_ids = []
-    for stream in combined_data:
-        if re.search('(Members|Member|member|members)', stream['title']) or re.search('(メンバ|メン限)', stream['title']):
-            video_ids.append(stream['id'])
-    print("Member Videos: ", video_ids)
-    return video_ids
+    try:
+        req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live").json()
+    except requests.exceptions.RequestException as rerror:
+        print(["ERROR"], rerror)
+        req = []
+        pass
+    req2 = []
+    for channel_id in other_channel_ids:
+        try:
+            req2 += requests.get(url=f"https://holodex.net/api/v2/live?channel_id={channel_id}&status=live").json()
+        except requests.exceptions.RequestException as rerror:
+            print(["ERROR"], rerror)
+            continue
+
+    combined_data = req + req2
+    streams = []
+    if len(combined_data) != 0:
+        for stream in combined_data:
+            if re.search('(member|members)', stream['title'].lower()) or re.search('(メンバ|メン限)', stream['title']):
+                streams.append(stream)
+    return streams
 
 
 def download():
-    links = get_links()
-    for link in links:
-        if link not in fetched.keys():
-            fetched[link] = {'id': link[-11:],
-                            'downloaded': 'false',
-                            'timestamp': time.time()}
+    streams = get_links()
+    for stream in streams:
+        if stream["channel"]["name"] not in fetched.keys():
+            fetched[stream["channel"]["name"]] = {'id': stream["id"],
+                                                  'downloaded': 'false',
+                                                  'timestamp': time.time()}
     save()
     # Get video_id's that have not been downloaded
     download_id = []
     for link in fetched:
-        # try:
-        #     print("Downloading json...")
-        #     process = create_json(fetched[link]['id'])
-        #     print("Return Code: ", process.returncode)
-        # except Exception as e:
-        #     print(e, "\nError creating Json")
-
         if fetched[link]['downloaded'] == 'false':
-            download_id.append(link)
-    # Download the undownloaded member video if there are videos to download
+            download_id.append(fetched[link]["id"])
+    # Download the not downloaded member video if there are videos to download
     if len(download_id) != 0:
         download_result = live_download.download(download_id)
-        for download in download_result:
-            if fetched[download]:
+        print(f"[INFO] Downloading {download_id}")
+        for downloaded in download_result:
+            if fetched[link]["downloaded"]:
                 # set fetched video's downloaded key to download's key
-                fetched[download]['downloaded'] = download_result[download]
+                fetched[link]['downloaded'] = download_result[downloaded]
+    else:
+        print("[INFO] No member's only stream found/downloaded")
         save()
 
 
 if __name__ == '__main__':
     clear_link()
+    # In seconds so 14400sec == 4 hours
+    expire_time = 14400
+    sleep_time = 300
     while True:
         start_time = time.time()
-        if time.time() - start_time > 14400:
+        if time.time() - start_time > expire_time:
             clear_link()
             start_time = time.time()
         download()
         # change sleep time to 1 min maybe
-        print("Sleeping for 300 seconds")
-        time.sleep(300)
-
+        print(f"[INFO] Sleeping for {sleep_time} seconds\n")
+        time.sleep(sleep_time)
