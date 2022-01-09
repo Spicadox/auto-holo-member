@@ -1,10 +1,14 @@
 import time
 import json
 import os
+import urllib
+
 import live_download
 import requests
 import re
+import const
 
+WEBHOOK_URL = const.WEBHOOK_URL
 FETCHED_JSON = "fetched.json"
 fetched = {}
 """
@@ -64,69 +68,117 @@ else:
 
 
 def get_links():
-    # Channel IDs for other channels i.e. kson, nayuta
-    other_channel_ids = ["UC9ruVYPv7yJmV0Rh0NKA-Lw", "UCmhtmUBjkXOAetnaDq-XJ1g"]
+    other_channel_ids = const.other_channel_ids
+    api_key = const.API_KEY
+    if other_channel_ids is not None:
+        channel_ids = "%2".join(other_channel_ids)
+
     # Use holodex api to grab live streams
     try:
         req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live").json()
-    except requests.exceptions.RequestException as rerror:
-        print(["ERROR"], rerror)
+    except (requests.exceptions.RequestException, json.decoder.JSONDecodeError) as rerror:
+        print("[ERROR]", rerror)
+        print("[ERROR] Something went wrong sending the request")
         req = []
         pass
-    req2 = []
-    for channel_id in other_channel_ids:
-        try:
-            req2 += requests.get(url=f"https://holodex.net/api/v2/live?channel_id={channel_id}&status=live").json()
-        except requests.exceptions.RequestException as rerror:
-            print(["ERROR"], rerror)
-            continue
+    try:
+        if other_channel_ids is not None or len(other_channel_ids) > 0:
+            if api_key is not None:
+                req2 = requests.get(url=f"https://holodex.net/api/v2/users/live?channels={channel_ids}", headers={"X-APIKEYS": api_key}).json()
+            else:
+                req2 = requests.get(url=f"https://holodex.net/api/v2/users/live?channels={channel_ids}", headers={"X-APIKEYS": api_key}).json()
+    except (requests.exceptions.RequestException, json.decoder.JSONDecodeError) as rerror:
+        print("[ERROR]", rerror)
+        print("[ERROR] Something went wrong sending the request")
+        req2 = []
+        pass
 
     combined_data = req + req2
     streams = []
     if len(combined_data) != 0:
         for stream in combined_data:
-            if re.search('(member|members)', stream['title'].lower()) or re.search('(メンバ|メン限)', stream['title']):
+            # Check the html page to see if it's a member stream
+            # if get_is_member_stream(stream["id"]):
+            #     steams.append(stream)
+            # Return name of the stream in lowercase
+            stream_name = stream['title'].lower()
+            if re.search('(member|members)', stream_name) or re.search('(メンバ|メン限)', stream_name):
                 streams.append(stream)
     return streams
+
+
+def notify(name, id):
+    try:
+        url = f"https://youtu.be/{id}"
+        message = f"{name} has a member-only stream live at {url}"
+        requests.post(WEBHOOK_URL, json={'content': message})
+    except Exception as e:
+        print(f'[error] {e}')
+
+
+def get_is_member_stream(video_id):
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    req = urllib.request.Request(url).text
+    if '"offerId":"sponsors_only_video"' in req:
+        return True
+    else:
+        return False
 
 
 def download():
     streams = get_links()
     for stream in streams:
+        streamer_name = stream["channel"]["name"]
+        stream_id = stream["id"]
         if stream["channel"]["name"] not in fetched.keys():
             fetched[stream["channel"]["name"]] = {'id': stream["id"],
                                                   'downloaded': 'false',
                                                   'timestamp': time.time()}
+
+            if WEBHOOK_URL is not None:
+                notify(streamer_name, stream_id)
     save()
     # Get video_id's that have not been downloaded
     download_id = []
     for link in fetched:
         if fetched[link]['downloaded'] == 'false':
-            download_id.append(fetched[link]["id"])
+            download_id.append((link, fetched[link]["id"]))
     # Download the not downloaded member video if there are videos to download
     if len(download_id) != 0:
         download_result = live_download.download(download_id)
-        print(f"[INFO] Downloading {download_id}")
+        streamer = download_id[0][0]
+        stream_id = download_id[0][1]
+        print(f"[INFO] {streamer} is streaming, downloading {stream_id}")
+
         for downloaded in download_result:
-            if fetched[link]["downloaded"]:
-                # set fetched video's downloaded key to download's key
-                fetched[link]['downloaded'] = download_result[downloaded]
+            # ("channel_name", "true")
+            channel_name = downloaded[0]
+            result_value = downloaded[1]
+            for download_tuple in download_id:
+                # download_tuple = ("channel_name", "channel_id")
+                if channel_name in download_tuple[0]:
+                    # set fetched video's downloaded key to download's key
+                    fetched[channel_name]['downloaded'] = result_value
+        save()
     else:
         print("[INFO] No member's only stream found/downloaded")
         save()
 
 
 if __name__ == '__main__':
-    clear_link()
-    # In seconds so 14400sec == 4 hours
-    expire_time = 14400
-    sleep_time = 300
-    while True:
-        start_time = time.time()
-        if time.time() - start_time > expire_time:
-            clear_link()
+    try:
+        clear_link()
+        expire_time = const.EXPIRE_TIME
+        sleep_time = const.SLEEP_TIME
+        while True:
             start_time = time.time()
+            if time.time() - start_time > expire_time:
+                clear_link()
+                start_time = time.time()
+            download()
+            # change sleep time to 1 min maybe
+            print(f"[INFO] Sleeping for {sleep_time} seconds\n")
+            time.sleep(sleep_time)
+    except KeyboardInterrupt as k:
+        print(k)
         download()
-        # change sleep time to 1 min maybe
-        print(f"[INFO] Sleeping for {sleep_time} seconds\n")
-        time.sleep(sleep_time)
