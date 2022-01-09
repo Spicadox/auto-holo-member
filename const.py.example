@@ -1,0 +1,23 @@
+# holodex API KEY
+API_KEY = None
+
+# Channel IDs for other channels i.e. kson, nayuta
+# other_channel_ids = ["UC9ruVYPv7yJmV0Rh0NKA-Lw", "UCmhtmUBjkXOAetnaDq-XJ1g"]
+other_channel_ids = []
+
+# Time(seconds) before removing json(to avoid duplicate download)
+EXPIRE_TIME = 14400
+
+# Time(seconds) before querying for live videos
+SLEEP_TIME = 300
+
+# Download path
+# DOWNLOAD = "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)"
+DOWNLOAD = None
+
+# Cookie path
+# COOKIE = 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt'
+COOKIE = None
+
+# Discord webhook url
+WEBHOOK_URL = None
