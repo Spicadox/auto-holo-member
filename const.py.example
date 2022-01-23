@@ -21,3 +21,6 @@ COOKIE = None
 
 # Discord webhook url
 WEBHOOK_URL = None
+
+# Option to log output to
+LOGGING = False
