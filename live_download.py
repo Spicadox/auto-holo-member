@@ -10,7 +10,7 @@ def download(videos):
         channel_name = video[0]
         video_id = video[1]
 
-        if platform.system() == "Window":
+        if platform.system() == "Windows":
             # /c - close console after execution
             command_list = ['start', 'cmd', '/c']
             command_list += ['ytarchive.exe', '--cookies', const.COOKIE, '-o',
