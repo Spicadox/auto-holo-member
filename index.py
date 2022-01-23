@@ -98,6 +98,7 @@ def get_links():
     combined_data = req + req2
     streams = []
     if len(combined_data) != 0:
+        # TODO: download info-json using yt-dlp or save json like auto-ytarchive
         for stream in combined_data:
             logger.debug(stream)
             # Check the html page to see if it's a member stream
@@ -108,7 +109,9 @@ def get_links():
             logger.debug(stream_name)
             logger.debug(re.search('(member|members)', stream_name))
             logger.debug(re.search('(メンバ|メン限)', stream_name))
-            if re.search('(member|members)', stream_name) or re.search('(メンバ|メン限)', stream_name):
+            member_only = get_is_member_stream(stream['id'])
+            logger.debug(member_only)
+            if re.search('(member|members)', stream_name) or re.search('(メンバ|メン限)', stream_name) or member_only:
                 streams.append(stream)
     return streams
 
@@ -124,11 +127,16 @@ def notify(name, id):
 
 def get_is_member_stream(video_id):
     url = f"https://www.youtube.com/watch?v={video_id}"
-    req = urllib.request.Request(url).text
-    logger.debug(req)
-    if '"offerId":"sponsors_only_video"' in req:
-        return True
-    else:
+    try:
+        # req = urllib.request.Request(url).text
+        req = requests.get(url).text
+        # logger.debug(req)
+        if '"offerId":"sponsors_only_video"' in req:
+            return True
+        else:
+            return False
+    except Exception as e:
+        logger.error(e)
         return False
 
 
@@ -173,11 +181,11 @@ def download():
 
 
 if __name__ == '__main__':
-    try:
-        clear_link()
-        expire_time = const.EXPIRE_TIME
-        sleep_time = const.SLEEP_TIME
-        while True:
+    clear_link()
+    expire_time = const.EXPIRE_TIME
+    sleep_time = const.SLEEP_TIME
+    while True:
+        try:
             start_time = time.time()
             if time.time() - start_time > expire_time:
                 clear_link()
@@ -186,6 +194,5 @@ if __name__ == '__main__':
             # change sleep time to 1 min maybe
             logger.info(f"Sleeping for {sleep_time} seconds\n")
             time.sleep(sleep_time)
-    except KeyboardInterrupt as k:
-        logger.error(k)
-        download()
+        except KeyboardInterrupt as k:
+            logger.error(k)
