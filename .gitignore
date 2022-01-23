@@ -1,5 +1,6 @@
 *
 !.gitignore
+!log.py
 !index.py
 !member_link.py
 !live_download.py
