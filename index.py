@@ -2,13 +2,15 @@ import time
 import json
 import os
 import urllib
-
+import log
 import live_download
 import requests
 import re
 import const
 
 WEBHOOK_URL = const.WEBHOOK_URL
+if const.LOGGING:
+    logger = log.create_logger("logfile.log")
 FETCHED_JSON = "fetched.json"
 fetched = {}
 """
@@ -44,14 +46,14 @@ def clear_link():
             # Remove link in global fetched and local fetched_json
             if link in fetched.keys():
                 del fetched[link]
-            print("[INFO] Expired, Removing " + link)
+            logger.info(f"Expired, Removing {link}")
             del fetched_json[link]
 
     # Saving json if links can be removed
     if len(removal) > 0:
         with open(FETCHED_JSON, "w", encoding="utf8") as writeFile:
             json.dump(fetched_json, writeFile, indent=4, ensure_ascii=False)
-            print("[INFO] Saving json")
+            logger.info("Saving json")
 
 
 if os.path.isfile(FETCHED_JSON):
@@ -59,7 +61,7 @@ if os.path.isfile(FETCHED_JSON):
         try:
             fetched = json.load(f)
         except json.JSONDecodeError as j:
-            print(f"[ERROR] {j}")
+            logger.error(j)
             fetched = {}
             save()
 else:
@@ -77,8 +79,8 @@ def get_links():
     try:
         req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live").json()
     except (requests.exceptions.RequestException, json.decoder.JSONDecodeError) as rerror:
-        print("[ERROR]", rerror)
-        print("[ERROR] Something went wrong sending the request")
+        logger.error(rerror)
+        logger.error("Something went wrong sending the request")
         req = []
         pass
     try:
@@ -88,8 +90,8 @@ def get_links():
             else:
                 req2 = requests.get(url=f"https://holodex.net/api/v2/users/live?channels={channel_ids}", headers={"X-APIKEYS": api_key}).json()
     except (requests.exceptions.RequestException, json.decoder.JSONDecodeError) as rerror:
-        print("[ERROR]", rerror)
-        print("[ERROR] Something went wrong sending the request")
+        logger.error(rerror)
+        logger.error("Something went wrong sending the request")
         req2 = []
         pass
 
@@ -97,11 +99,15 @@ def get_links():
     streams = []
     if len(combined_data) != 0:
         for stream in combined_data:
+            logger.debug(stream)
             # Check the html page to see if it's a member stream
             # if get_is_member_stream(stream["id"]):
             #     steams.append(stream)
             # Return name of the stream in lowercase
             stream_name = stream['title'].lower()
+            logger.debug(stream_name)
+            logger.debug(re.search('(member|members)', stream_name))
+            logger.debug(re.search('(メンバ|メン限)', stream_name))
             if re.search('(member|members)', stream_name) or re.search('(メンバ|メン限)', stream_name):
                 streams.append(stream)
     return streams
@@ -113,12 +119,13 @@ def notify(name, id):
         message = f"{name} has a member-only stream live at {url}"
         requests.post(WEBHOOK_URL, json={'content': message})
     except Exception as e:
-        print(f'[error] {e}')
+        logger.error(e)
 
 
 def get_is_member_stream(video_id):
     url = f"https://www.youtube.com/watch?v={video_id}"
     req = urllib.request.Request(url).text
+    logger.debug(req)
     if '"offerId":"sponsors_only_video"' in req:
         return True
     else:
@@ -148,7 +155,7 @@ def download():
         download_result = live_download.download(download_id)
         streamer = download_id[0][0]
         stream_id = download_id[0][1]
-        print(f"[INFO] {streamer} is streaming, downloading {stream_id}")
+        logger.info(f"{streamer} is streaming, downloading {stream_id}")
 
         for downloaded in download_result:
             # ("channel_name", "true")
@@ -161,7 +168,7 @@ def download():
                     fetched[channel_name]['downloaded'] = result_value
         save()
     else:
-        print("[INFO] No member's only stream found/downloaded")
+        logger.info("No member's only stream found/downloaded")
         save()
 
 
@@ -177,8 +184,8 @@ if __name__ == '__main__':
                 start_time = time.time()
             download()
             # change sleep time to 1 min maybe
-            print(f"[INFO] Sleeping for {sleep_time} seconds\n")
+            logger.info(f"Sleeping for {sleep_time} seconds\n")
             time.sleep(sleep_time)
     except KeyboardInterrupt as k:
-        print(k)
+        logger.error(k)
         download()
