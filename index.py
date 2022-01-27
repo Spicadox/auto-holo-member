@@ -2,6 +2,7 @@ import time
 import json
 import os
 import urllib
+from member_link import member_links
 import log
 import live_download
 import requests
@@ -74,7 +75,13 @@ def get_links():
     api_key = const.API_KEY
     if other_channel_ids is not None:
         channel_ids = "%2".join(other_channel_ids)
-
+    email_links = []
+    try:
+        if const.FETCH_FROM_EMAIL:
+            email_links = member_links()
+            logger.debug(email_links)
+    except Exception as e:
+        logger.error(e)
     # Use holodex api to grab live streams
     try:
         req = requests.get(url="https://holodex.net/api/v2/live?org=Hololive&status=live").json()
@@ -95,7 +102,7 @@ def get_links():
         req2 = []
         pass
 
-    combined_data = req + req2
+    combined_data = req + req2 + email_links
     streams = []
     if len(combined_data) != 0:
         # TODO: download info-json using yt-dlp or save json like auto-ytarchive
