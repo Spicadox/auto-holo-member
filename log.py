@@ -7,7 +7,7 @@ import const
 # Filter subclass that does not allow the file logging of sleeping messages
 class NoParsingFilter(logging.Filter):
     def filter(self, record):
-        return not record.getMessage().startswith('Sleeping') or record.getMessage().endswith('found/downloaded')
+        return not record.getMessage().startswith('Sleeping') or not record.getMessage().endswith('found/downloaded')
 
 
 def create_logger(logfile_name):
