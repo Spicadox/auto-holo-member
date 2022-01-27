@@ -24,3 +24,10 @@ WEBHOOK_URL = None
 
 # Option to log output to
 LOGGING = False
+
+# Allow for a more fool-proof tracking of member's only stream when the holodex API doesn't seem to currently catch all
+# member's stream
+# Setting this to True will require manually setting up gmail api to obtain the token.json and credentials.json
+FETCH_FROM_EMAIL = False
+# Default number of emails to look through
+NUM_EMAILS = 10
