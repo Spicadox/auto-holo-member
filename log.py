@@ -10,6 +10,11 @@ class NoParsingFilter(logging.Filter):
         return not record.getMessage().startswith('Sleeping') or not record.getMessage().endswith('found/downloaded')
 
 
+class NoParsingFilterConsole(logging.Filter):
+    def filter(self, record):
+        return 'This live event will begin in' not in record.getMessage()
+
+
 def create_logger(logfile_name):
     # Check if log dir exist and if not create it
     logging.handlers.TimedRotatingFileHandler
@@ -42,6 +47,8 @@ def create_logger(logfile_name):
 
     # define a Handler which writes DEBUG messages or higher to the sys.stderr
     console = logging.StreamHandler()
+    # Add filter to not print the error log of videos being scheduled
+    console.addFilter(NoParsingFilterConsole())
     console.setLevel(logging.INFO)
     # set a format which is simpler for console use
     console_formatter = logging.Formatter('[%(levelname)s] %(message)s')
