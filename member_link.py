@@ -29,8 +29,8 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
 
 def member_links():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
+    """Finds member stream notification in the first 10 emails and return a
+    list of dictionary with stream information
     """
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
@@ -76,11 +76,14 @@ def member_links():
         msg = service.users().messages().get(userId='me', id=message['id']).execute()
         # Find email messages(up to 10) that only contain member keywords
         # Optionally instead of regex decode result to utf-8
-        if re.search('(Members|Member|member|members)', msg['snippet']) or re.search('(メンバ|メン限)', msg['snippet']):
-            logger.debug(msg['snippet'])
-            member_notif.append(msg)
-        else:
-            logger.debug("Not Member Stream")
+        try:
+            if re.search('(member|members)', msg['snippet'].lower().strip()) or re.search('(メンバ|メン限)', msg['snippet'].strip()):
+                logger.debug(msg['snippet'])
+                member_notif.append(msg)
+            else:
+                logger.debug("Not Member Stream")
+        except Exception as e:
+            logger.error(e)
     # logger.debug(json.dumps(array[0], indent=1, ensure_ascii=False).encode('utf8').decode())
     # logger.debug(json.dumps(array[0]["payload"]["parts"], indent=1, ensure_ascii=False).encode('utf-8').decode())
     #Now get data and decode body message
