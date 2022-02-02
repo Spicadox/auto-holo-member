@@ -1,4 +1,9 @@
+# There are three ways to check whether a members-only stream is live; using youtube-dl, holodex, or fetching from email
+# The recommended and default is using youtube-dl as holodex does not seem to work 100% of the time
+FETCH_FROM_YTDL = True
+
 # holodex API KEY
+FETCH_FROM_HOLODEX = False
 API_KEY = None
 
 # Channel IDs for other channels i.e. kson, nayuta
@@ -9,7 +14,7 @@ other_channel_ids = []
 EXPIRE_TIME = 14400
 
 # Time(seconds) before querying for live videos
-SLEEP_TIME = 300
+SLEEP_TIME = 200
 
 # Download path
 # DOWNLOAD = "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)"
