@@ -13,7 +13,7 @@ def download(videos):
         if platform.system() == "Windows":
             # /c - close console after execution
             command_list = ['start', 'cmd', '/c']
-            command_list += ['ytarchive.exe', '--cookies', const.COOKIE, '-o',
+            command_list += ['ytarchive.exe', '-v', '--cookies', const.COOKIE, '-o',
                              const.DOWNLOAD,
                              '--add-metadata', '-t', '--vp9', '--write-description', '--write-thumbnail', '--threads', '2',
                              '-w']
