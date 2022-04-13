@@ -1,3 +1,4 @@
+import sys
 import time
 import json
 import os
@@ -9,6 +10,10 @@ import live_download
 import requests
 import re
 import const
+# try:
+#     import getjson
+# except ImportError or ModuleNotFoundError:
+#     pass
 
 WEBHOOK_URL = const.WEBHOOK_URL
 if const.LOGGING:
@@ -203,12 +208,18 @@ def download():
     for stream in streams:
         streamer_name = stream["channel"]["name"]
         stream_id = stream["id"]
+        try:
+            import getjson
+            url = f"https://youtu.be/{stream_id}"
+            getjson.get_json(url)
+        except Exception as e:
+            logger.error(e)
         if stream["channel"]["name"] not in fetched.keys():
             fetched[stream["channel"]["name"]] = {'id': stream["id"],
                                                   'downloaded': 'false',
                                                   'notified': 'false',
                                                   'timestamp': time.time()}
-            print(fetched)
+
             if WEBHOOK_URL is not None and fetched[stream["channel"]["name"]]["notified"] != 'true':
                 notify(streamer_name, stream_id)
                 fetched[stream["channel"]["name"]]['notified'] = 'true'
@@ -245,12 +256,16 @@ if __name__ == '__main__':
     clear_link()
     expire_time = const.EXPIRE_TIME
     sleep_time = const.SLEEP_TIME
+    cleared = True
     while True:
         try:
-            start_time = time.time()
+            if cleared:
+                start_time = time.time()
+                cleared = False
             if time.time() - start_time > expire_time:
                 clear_link()
                 start_time = time.time()
+                cleared = True
             download()
             # change sleep time to 1 min maybe
             logger.info(f"Sleeping for {sleep_time} seconds\n")
