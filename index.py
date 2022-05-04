@@ -1,8 +1,7 @@
-import sys
+
 import time
 import json
 import os
-import urllib
 import youtube_dl
 from member_link import member_links
 import log
@@ -56,14 +55,21 @@ def clear_link():
 
         removal = []
         for link in fetched_json.keys():
-            if time.time() - fetched_json[link]['timestamp'] > 14400:
-                removal.append(link)
+            for id in fetched_json[link].keys():
+                if time.time() - fetched_json[link][id]['timestamp'] > 28800:
+                    removal.append((link, id))
         for link in removal:
             # Remove link in global fetched and local fetched_json
-            if link in fetched.keys():
-                del fetched[link]
-            logger.info(f"Expired, Removing {link}")
-            del fetched_json[link]
+            if link[0] in fetched.keys():
+                # Remove entire object if theres only 1 video id
+                if len(fetched[link[0]].keys()) == 1:
+                    del fetched[link[0]]
+                    del fetched_json[link[0]]
+                else:
+                    del fetched[link[0]][link[1]]
+                    del fetched_json[link[0]][link[1]]
+            logger.info(f"Expired, Removing {link[1]} from {link[0]}")
+
 
     # Saving json if links can be removed
     if len(removal) > 0:
@@ -214,37 +220,48 @@ def download():
             getjson.get_json(url)
         except Exception as e:
             logger.error(e)
+        # TODO    Take a look and change if statement later
         if stream["channel"]["name"] not in fetched.keys():
-            fetched[stream["channel"]["name"]] = {'id': stream["id"],
+            fetched[stream["channel"]["name"]] = {stream["id"]: {
+                                                  'downloaded': 'false',
+                                                  'notified': 'false',
+                                                  'timestamp': time.time()}}
+        elif stream["id"] not in fetched[stream["channel"]["name"]].keys():
+            fetched[stream["channel"]["name"]][stream["id"]] = {
                                                   'downloaded': 'false',
                                                   'notified': 'false',
                                                   'timestamp': time.time()}
-
-            if WEBHOOK_URL is not None and fetched[stream["channel"]["name"]]["notified"] != 'true':
+        try:
+            if WEBHOOK_URL is not None and fetched[stream["channel"]["name"]][stream["id"]]["notified"] != 'true':
                 notify(streamer_name, stream_id)
-                fetched[stream["channel"]["name"]]['notified'] = 'true'
+                fetched[stream["channel"]["name"]][stream["id"]]["notified"] = 'true'
+        except KeyError:
+            notify(streamer_name, stream_id)
+            fetched[stream["channel"]["name"]][stream["id"]]["notified"] = 'true'
     save()
     # Get video_id's that have not been downloaded
     download_id = []
     for link in fetched:
-        if fetched[link]['downloaded'] == 'false':
-            download_id.append((link, fetched[link]["id"]))
+        for id in fetched[link].keys():
+            if fetched[link][id]['downloaded'] == 'false':
+                download_id.append((link, id))
     # Download the not downloaded member video if there are videos to download
+    # TODO why is this...
     if len(download_id) != 0:
-        download_result = live_download.download(download_id)
+        logger.debug(download_id)
+        download_result = live_download.download2(download_id)
         streamer = download_id[0][0]
         stream_id = download_id[0][1]
         logger.info(f"{streamer} is streaming, downloading {stream_id}")
 
         for downloaded in download_result:
-            # ("channel_name", "true")
             channel_name = downloaded[0]
             result_value = downloaded[1]
             for download_tuple in download_id:
                 # download_tuple = ("channel_name", "channel_id")
                 if channel_name in download_tuple[0]:
                     # set fetched video's downloaded key to download's key
-                    fetched[channel_name]['downloaded'] = result_value
+                    fetched[channel_name][stream_id]['downloaded'] = result_value
         save()
     else:
         logger.info("No member's only stream found/downloaded")
@@ -272,3 +289,6 @@ if __name__ == '__main__':
             time.sleep(sleep_time)
         except KeyboardInterrupt as k:
             logger.error(k)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            logger.debug(fetched)
