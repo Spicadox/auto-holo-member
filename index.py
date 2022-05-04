@@ -249,7 +249,7 @@ def download():
     # TODO why is this...
     if len(download_id) != 0:
         logger.debug(download_id)
-        download_result = live_download.download2(download_id)
+        download_result = live_download.download(download_id)
         streamer = download_id[0][0]
         stream_id = download_id[0][1]
         logger.info(f"{streamer} is streaming, downloading {stream_id}")
