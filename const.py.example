@@ -17,11 +17,11 @@ EXPIRE_TIME = 14400
 SLEEP_TIME = 200
 
 # Download path
-# DOWNLOAD = "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)"
+# E.g. DOWNLOAD = "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)"
 DOWNLOAD = None
 
 # Cookie path
-# COOKIE = 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt'
+# E.g. COOKIE = 'I:\\archive scripts\\batch scripts\\member_script\\newcookiefile_2.txt'
 COOKIE = None
 
 # Discord webhook url
@@ -29,10 +29,3 @@ WEBHOOK_URL = None
 
 # Option to log output to
 LOGGING = False
-
-# Allow for a more fool-proof tracking of member's only stream when the holodex API doesn't seem to currently catch all
-# member's stream
-# Setting this to True will require manually setting up gmail api to obtain the token.json and credentials.json
-FETCH_FROM_EMAIL = False
-# Default number of emails to look through
-NUM_EMAILS = 10
