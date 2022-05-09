@@ -1,13 +1,12 @@
-
 import time
 import json
 import os
-import youtube_dl
 from member_link import member_links
 import log
 import live_download
 import requests
 import re
+import subprocess
 import const
 # try:
 #     import getjson
@@ -23,22 +22,19 @@ try:
 except json.JSONDecodeError as jsonError:
     logger.error(jsonError)
     channels = {}
-except ValueError as valuerror:
-    logger.error(valuerror)
+except ValueError as valError:
+    logger.error(valError)
     channels = {}
 FETCHED_JSON = "fetched.json"
 fetched = {}
 """
 fetched = {
-    "kson ONAIR": {
-        "id": "aXdH11XtikI",
-        "downloaded": "false",
-        "timestamp": 1631826398.5934074
-    },
-    "Mio Channel 大神ミオ": {
-        "id": "wri4zMtI5sc",
-        "downloaded": "false",
-        "timestamp": 1631826398.5934074
+    "Luna Ch. 姫森ルーナ": {
+            "dDT1_BkJdKQ": {
+                "downloaded": "true",
+                "notified": "true",
+                "timestamp": 1652023702.6788592
+            }
     }
 }
 """
@@ -61,7 +57,7 @@ def clear_link():
         for link in removal:
             # Remove link in global fetched and local fetched_json
             if link[0] in fetched.keys():
-                # Remove entire object if theres only 1 video id
+                # Remove entire object if there is only 1 video id
                 if len(fetched[link[0]].keys()) == 1:
                     del fetched[link[0]]
                     del fetched_json[link[0]]
@@ -70,12 +66,12 @@ def clear_link():
                     del fetched_json[link[0]][link[1]]
             logger.info(f"Expired, Removing {link[1]} from {link[0]}")
 
-
     # Saving json if links can be removed
     if len(removal) > 0:
         with open(FETCHED_JSON, "w", encoding="utf8") as writeFile:
             json.dump(fetched_json, writeFile, indent=4, ensure_ascii=False)
             logger.info("Saving json")
+            print(" " * 40, end="\n")
 
 
 if os.path.isfile(FETCHED_JSON):
@@ -92,40 +88,32 @@ else:
 
 
 def get_latest_member_streams():
-    logger.info("Getting member streams using yt_dl...")
     dict_list = []
-    ytdl_format_options = {
-        "playlistend": 1,
-        "ignoreerrors": True,
-        "logger": logger,
-        "quiet": True,
-        "no_warnings": True,
-        "cookiefile": const.COOKIE
-    }
-    with youtube_dl.YoutubeDL(ytdl_format_options) as ytdl:
-        for channel in channels.values():
-            try:
-                member_url = f"https://www.youtube.com/channel/{channel}/membership"
-                logger.debug(member_url)
-                info_dict = ytdl.extract_info(member_url, download=False)
-                #logger.debug(info_dict)
+    counter = 1
+    dict_length = len(channels)
+    for channel in channels.values():
+        try:
+            print(f"[INFO] Looking through member's pages {counter}/{dict_length}...", end="\r")
+            command_list = ["yt-dlp", "--cookies-from-browser", "chrome", "--playlist-end", "1", "-j",
+                            f"https://www.youtube.com/channel/{channel}/membership"]
+            process = subprocess.run(command_list, capture_output=True, text=True)
+            # logger.debug(process)
 
-                if info_dict is None:
-                    continue
+            info_dict = json.loads(process.stdout)
 
-                try:
-                    if info_dict['entries'][0]['is_live']:
-                        dict_list.append({"id": info_dict['entries'][0]['id'], "title": info_dict['entries'][0]['title'],
-                                          "channel": {"name": info_dict['entries'][0]['uploader']}})
-                    else:
-                        continue
-                except Exception as e:
-                    logger.debug(e)
-                    continue
-                time.sleep(4)
-            except Exception as e:
-                logger.error(e)
+            if info_dict['is_live']:
+                dict_list.append({"id": info_dict['id'], "title": info_dict['title'],
+                                  "channel": {"name": info_dict['channel']}})
+            else:
                 continue
+        except json.JSONDecodeError as jsonError:
+            logger.debug(str(jsonError) + f" occurred when looking through {channel}")
+        except Exception as e:
+            print(" " * 40, end="\n")
+            logger.error(e)
+        finally:
+            counter += 1
+            # time.sleep(4)
     return dict_list
 
 
@@ -140,6 +128,7 @@ def get_links():
             email_links = member_links()
             logger.debug(email_links)
     except Exception as e:
+        # print(" " * 40, end="\n")
         logger.error(e)
 
     if const.FETCH_FROM_YTDL:
@@ -187,10 +176,12 @@ def get_links():
 
 def notify(name, id):
     try:
+        channel_url = "https://www.youtube.com/channel/" + channels[name]
         url = f"https://youtu.be/{id}"
-        message = f"{name} has a member-only stream live at {url}"
+        message = f"[{name}](<{channel_url}>) has a member-only stream live at {url}"
         requests.post(WEBHOOK_URL, json={'content': message})
     except Exception as e:
+        # print(" " * 40, end="\n")
         logger.error(e)
 
 
@@ -205,6 +196,7 @@ def get_is_member_stream(video_id):
         else:
             return False
     except Exception as e:
+        # print(" " * 40, end="\n")
         logger.error(e)
         return False
 
@@ -246,13 +238,14 @@ def download():
             if fetched[link][id]['downloaded'] == 'false':
                 download_id.append((link, id))
     # Download the not downloaded member video if there are videos to download
-    # TODO why is this...
     if len(download_id) != 0:
         logger.debug(download_id)
         download_result = live_download.download(download_id)
-        streamer = download_id[0][0]
-        stream_id = download_id[0][1]
-        logger.info(f"{streamer} is streaming, downloading {stream_id}")
+
+        for stream_tuple in download_id:
+            streamer = stream_tuple[0]
+            stream_id = stream_tuple[1]
+            logger.info(f"{streamer} is streaming, downloading {stream_id}")
 
         for downloaded in download_result:
             channel_name = downloaded[0]
@@ -261,11 +254,26 @@ def download():
                 # download_tuple = ("channel_name", "channel_id")
                 if channel_name in download_tuple[0]:
                     # set fetched video's downloaded key to download's key
+                    stream_id = download_tuple[1]
                     fetched[channel_name][stream_id]['downloaded'] = result_value
         save()
     else:
+        # TODO maybe put statement before log
         logger.info("No member's only stream found/downloaded")
+        # print(" " * 40, end="\n")
         save()
+
+
+def sleeping_text():
+    counter = sleep_time
+    print(" "*35, end="\n")
+    while True:
+        loading_string = f"[INFO] Sleeping for {counter} secs"
+        if counter == 0:
+            break
+        print(loading_string, end="\r")
+        counter -= 1
+        time.sleep(1)
 
 
 if __name__ == '__main__':
@@ -284,11 +292,11 @@ if __name__ == '__main__':
                 start_time = time.time()
                 cleared = True
             download()
-            # change sleep time to 1 min maybe
-            logger.info(f"Sleeping for {sleep_time} seconds\n")
-            time.sleep(sleep_time)
+            sleeping_text()
         except KeyboardInterrupt as k:
             logger.error(k)
+            # print(" " * 40, end="\n")
         except Exception as e:
             logger.error(e, exc_info=True)
+            # print(" " * 40, end="\n")
             logger.debug(fetched)
