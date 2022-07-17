@@ -4,6 +4,20 @@ import os.path
 import const
 
 
+class YTLogger():
+    def error(msg, logger=None):
+        if logger is not None:
+            logger.debug(msg)
+        else:
+            pass
+
+    def warning(msg):
+        pass
+
+    def debug(msg):
+        pass
+
+
 # Filter subclass that does not allow the file logging of sleeping messages
 class NoParsingFilter(logging.Filter):
     def filter(self, record):
@@ -60,11 +74,10 @@ def create_logger(logfile_name):
 
     # If logging is not enabled then remove the root log handler but keep the stream handler
     if not const.LOGGING:
-        logger = logging.getLogger()  # this gets the root logger
         try:
-            lhStdout = logger.handlers[0]  # stdout is the only handler initially
+            lhStdout = logger.handlers[1]
+            logger.removeHandler(lhStdout)
         except IndexError as ierror:
             logger.error(ierror)
             return logger
-        logger.removeHandler(lhStdout)
     return logger
