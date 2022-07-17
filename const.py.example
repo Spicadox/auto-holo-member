@@ -1,23 +1,11 @@
-# There are three ways to check whether a members-only stream is live; using youtube-dl, holodex, or fetching from email
-# The recommended and default is using youtube-dl as holodex does not seem to work 100% of the time
-FETCH_FROM_YTDL = True
-
-# holodex API KEY
-FETCH_FROM_HOLODEX = False
-API_KEY = None
-
-# Channel IDs for other channels i.e. kson, nayuta
-# other_channel_ids = ["UC9ruVYPv7yJmV0Rh0NKA-Lw", "UCmhtmUBjkXOAetnaDq-XJ1g"]
-other_channel_ids = []
-
 # Time(seconds) before removing json(to avoid duplicate download)
 EXPIRE_TIME = 14400
 
 # Time(seconds) before querying for live videos
-SLEEP_TIME = 200
+SLEEP_TIME = 100
 
 # Download path
-# E.g. DOWNLOAD = "NoArchive\%(channel)s\%(upload_date)s - %(title)s\%(upload_date)s - %(title)s (%(id)s)"
+# E.g. DOWNLOAD = "I:\\Archive\\%(channel)s\%(upload_date)s - %(title)s\\%(upload_date)s - %(title)s (%(id)s)"
 DOWNLOAD = None
 
 # Cookie path
@@ -26,6 +14,7 @@ COOKIE = None
 
 # Discord webhook url
 WEBHOOK_URL = None
+DEAD_MEMBER_WEBHOOK_URL = None
 
-# Option to log output to
+# Option to log output to log file
 LOGGING = False
