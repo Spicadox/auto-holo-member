@@ -215,7 +215,6 @@ def download():
     else:
         # TODO maybe put statement before log
         logger.debug("No member's only stream found/downloaded")
-        # print(" " * 40, end="\r")
         save()
 
 
