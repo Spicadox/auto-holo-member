@@ -12,7 +12,7 @@ def download(videos):
 
         if platform.system() == "Windows":
             # /c - close console after execution
-            command_list = ['start', 'cmd', '/c']
+            command_list = ['start', f'auto-youtube-member {video_id}', '/min', 'cmd', '/c']
             command_list += ['ytarchive.exe', '-v', '--cookies', const.COOKIE, '-o',
                              const.DOWNLOAD,
                              '--add-metadata', '-t', '--vp9', '--write-description', '--write-thumbnail', '--threads', '2',
