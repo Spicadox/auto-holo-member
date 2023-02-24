@@ -2,17 +2,26 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import os.path
 import const
+import re
 
 
-class YTLogger():
+class YTLogger:
+    logger = logging.getLogger()
+
     def error(msg, logger=None):
         if logger is not None:
-            logger.debug(msg)
+            if "This video is available to this channel's members on level" in msg:
+                logger.error(msg)
+            else:
+                logger.warning(msg)
         else:
             pass
 
-    def warning(msg):
-        pass
+    def warning(msg, logger=None):
+        if logger is not None:
+            logger.warning(msg)
+        else:
+            pass
 
     def debug(msg):
         pass
@@ -26,7 +35,15 @@ class NoParsingFilter(logging.Filter):
 
 class NoParsingFilterConsole(logging.Filter):
     def filter(self, record):
-        return 'This live event will begin in' not in record.getMessage()
+        # Clean error message from yt_dlp
+        pattern = '(.*)(\[youtube.*|Incomplete data received.*)'
+        message = re.search(pattern=pattern, string=record.getMessage())
+        if message is not None:
+            try:
+                record.msg = message.group(2)
+            except Exception as e:
+                print(e)
+        return 'This live event will begin in' not in record.getMessage() and 'Unable to download webpage' not in record.getMessage() and 'urlopen error' not in record.getMessage() and 'Playlists that require authentication' not in record.getMessage()
 
 
 def create_logger(logfile_name):
@@ -49,7 +66,7 @@ def create_logger(logfile_name):
 
     # Create a new log file everyday
     handler = TimedRotatingFileHandler(log_path, when="midnight", interval=1, encoding='utf-8')
-    formatter = logging.Formatter('%(asctime)s [%(filename)s:%(lineno)d] %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M')
+    formatter = logging.Formatter('%(asctime)s [%(filename)s:%(lineno)d] %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     handler.setFormatter(formatter)
     handler.suffix = "%Y%m%d"   # file suffix to be changed
     handler.addFilter(NoParsingFilter())
@@ -65,7 +82,7 @@ def create_logger(logfile_name):
     console.addFilter(NoParsingFilterConsole())
     console.setLevel(logging.INFO)
     # set a format which is simpler for console use
-    console_formatter = logging.Formatter('[%(levelname)s] %(message)s')
+    console_formatter = logging.Formatter('[%(levelname)s] %(asctime)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     # tell the handler to use this format
     console.setFormatter(console_formatter)
     # add the handlers to the root logger

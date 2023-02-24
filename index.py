@@ -1,8 +1,12 @@
+import http.client
 import threading
 import time
 import json
 import os
+from datetime import datetime
 from requests.adapters import HTTPAdapter
+from urllib3 import Retry
+
 import log
 import live_download
 import requests
@@ -10,6 +14,7 @@ import re
 import const
 import yt_dlp
 
+# TODO fetched file not being updated may need to declare as global in function to edit
 
 WEBHOOK_URL = const.WEBHOOK_URL
 DEAD_MEMBER_WEBHOOK_URL = const.DEAD_MEMBER_WEBHOOK_URL
@@ -26,6 +31,7 @@ except json.JSONDecodeError as jsonError:
 except ValueError as valError:
     logger.error(valError)
     channels = {}
+
 FETCHED_JSON = "fetched.json"
 fetched = {}
 """
@@ -43,7 +49,7 @@ fetched = {
 
 
 def save():
-    with open(FETCHED_JSON, "w", encoding="utf8") as writeFile:
+    with open(FETCHED_JSON, "w", encoding="utf-8") as writeFile:
         json.dump(fetched, writeFile, indent=4, ensure_ascii=False)
 
 
@@ -66,7 +72,7 @@ def clear_link(expire_time):
                 else:
                     del fetched[link[0]][link[1]]
                     del fetched_json[link[0]][link[1]]
-            logger.info(f"Expired, Removing {link[1]} from {link[0]}")
+            logger.info(f"Expired, removing {link[1]} from {link[0]}")
 
     # Saving json if links can be removed
     if len(removal) > 0:
@@ -92,11 +98,11 @@ def get_latest_member_streams():
     dict_list = []
     counter = 1
     dict_length = len(channels)
-    ydl_opts = {"quiet": True, "no_warnings": True, "cookiesfrombrowser": ('chrome',), "playlistend": 1, "logger": ytdlp_logger}
+    ydl_opts = {"no_warnings": True, "cookiesfrombrowser": ('chrome',), "playlistend": 1, "logger": logger}
     with yt_dlp.YoutubeDL(ydl_opts) as ydlp:
-        for channel in channels.values():
+        for channel_name, channel in channels.items():
             try:
-                print(f"[INFO] Looking through member's pages {counter}/{dict_length}...", end="\r")
+                print(f"[INFO] {datetime.now().replace(microsecond=0)} | Looking through member's pages {counter}/{dict_length}...", end="\r")
 
                 info = ydlp.extract_info(f"https://www.youtube.com/channel/{channel}/membership", download=False)
                 info_dict = ydlp.sanitize_info(info)
@@ -110,29 +116,39 @@ def get_latest_member_streams():
             except KeyError as kError:
                 logger.debug(kError)
             except yt_dlp.utils.DownloadError as dError:
-                logger.debug(dError)
+                logger.debug(f"{channel_name}: {dError}")
             except Exception as e:
-                logger.debug(str(e) + " "*50, exc_info=True)
+                logger.debug(str(e), exc_info=True)
+                try:
+                    logger.debug(info_dict)
+                except Exception:
+                    pass
             finally:
                 counter += 1
     return dict_list
 
 
 def notify(channel, id, session):
-    try:
-        channel_url = "https://www.youtube.com/channel/" + channel[1]
-        url = f"https://youtu.be/{id}"
-        message = f"[{channel[0]}](<{channel_url}>) has a member-only stream live at {url}"
-        session.post(WEBHOOK_URL, json={'content': message})
-    except requests.exceptions.HTTPError as hError:
-        logger.error(hError, exc_info=True)
-    except requests.exceptions.RequestException as rException:
-        logger.error(rException, exc_info=True)
-    except KeyError as kError:
-        logger.error(kError)
-        logger.debug(channels)
-    except Exception as e:
-        logger.error(e, exc_info=True)
+    retry_notif = 5
+    while retry_notif > 0:
+        try:
+            channel_url = "https://www.youtube.com/channel/" + channel[1]
+            url = f"https://youtu.be/{id}"
+            message = f"[{channel[0]}](<{channel_url}>) has a member-only stream live at {url}"
+            session.post(WEBHOOK_URL, json={'content': message})
+            return
+        except requests.exceptions.HTTPError as hError:
+            logger.error(hError, exc_info=True)
+        except requests.exceptions.RequestException as rException:
+            logger.error(rException)
+        except KeyError as kError:
+            logger.error(kError)
+            logger.debug(channels)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+        finally:
+            retry_notif -= 1
+            time.sleep(5)
 
 
 def notify_dead(message, session):
@@ -150,11 +166,25 @@ def download():
         try:
             import util
             url = f"https://youtu.be/{stream_id}"
-            util.get_json(url)
+            regex_error = util.get_json(url)
+
+            # Check if it's truly a member only stream(normal stream posted to membership tab)
+            try:
+                r = requests.get(url)
+                if 'offerId":"sponsors_only_video' not in r.text:
+                    logger.info(f"{stream_id} is not a member's only stream")
+                    continue
+            except Exception as e:
+                logger.error(e)
+
+        except (ConnectionError, TimeoutError, http.client.HTTPException) as cError:
+            logger.error(cError)
+        except (requests.exceptions.Timeout, requests.exceptions.ReadTimeout) as rError:
+            logger.error(rError)
         except (ImportError, ModuleNotFoundError):
             pass
         except Exception as e:
-            logger.error(e)
+            logger.error(e, exc_info=True)
         # TODO    Take a look and change if statement later
         if stream["channel"]["name"] not in fetched.keys():
             fetched[stream["channel"]["name"]] = {stream["id"]: {
@@ -191,11 +221,12 @@ def download():
             import threading
             if const.CHAT_PATH is not None:
                 for d_id in download_id:
+                    # TODO: Could try catch exception to determine whether cookie file is no longer valid
                     threading.Thread(target=util.get_chat, args=[d_id[1]]).start()
         except (ImportError, ModuleNotFoundError, NameError):
             pass
         except Exception as e:
-            logger.error(e)
+            logger.error(e, exc_info=True)
             pass
         for stream_tuple in download_id:
             streamer = stream_tuple[0]
@@ -229,8 +260,11 @@ def check_status(session):
             for id in fetched[channel]:
                 try:
                     res = session.get(url+id).text
-                except requests.exceptions as reqExceptions:
+                except requests.exceptions.RequestException as reqExceptions:
                     logger.error(reqExceptions)
+                    continue
+                except Exception as e:
+                    logger.error(e)
                     continue
                 var = re.search(pattern="(var ytInitialPlayerResponse = )([^\n].*)", string=res)
                 if var is not None:
@@ -249,8 +283,9 @@ def check_status(session):
                 if fetched[channel][id]["status"] == "OK" and status != "":
                     channel_url = "https://www.youtube.com/channel/" + channels[channel]
                     url = f"https://youtu.be/{id}"
-                    message = f"Member-only stream from [{channel}](<{channel_url}>) is now `{status}` at {url}"
-                    logger.info(message)
+                    log_message = f"Members-only stream from {channel} is now {status} at {url}"
+                    message = f"Members-only stream from [{channel}](<{channel_url}>) is now `{status}` at {url}"
+                    logger.info(log_message)
                     logger.debug(res[:3000])
                     fetched[channel][id]["status"] = status
                     save_change = True
@@ -265,7 +300,7 @@ def sleeping_text():
     counter = sleep_time
     print(" "*70, end='\r')
     while True:
-        loading_string = f"[INFO] Sleeping for {counter} secs..."
+        loading_string = f"[INFO] {datetime.now().replace(microsecond=0)} | Sleeping for {counter} secs..."
         if counter == 0:
             break
         print(loading_string, end="\r")
@@ -274,11 +309,11 @@ def sleeping_text():
 
 
 def loading_text():
-    loading_string = "[INFO] Checking member's only stream status "
+    loading_string = "Checking member's only stream status "
     animation = ["     ", ".    ", "..   ", "...  ", ".... ", "....."]
     idx = 0
     while not stop_loading:
-        print(loading_string + animation[idx % len(animation)], end="\r")
+        print(f"[INFO] {datetime.now().replace(microsecond=0)} | " + loading_string + animation[idx % len(animation)], end="\r")
         time.sleep(0.3)
         idx += 1
         if idx == 6:
@@ -291,7 +326,8 @@ if __name__ == '__main__':
     sleep_time = const.SLEEP_TIME
     clear_link(expire_time)
     session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=5))
+    retry = Retry(total=5, connect=5, backoff_factor=1, status_forcelist=[400, 401, 403, 404, 429, 500, 502, 503, 504])
+    session.mount("https://", HTTPAdapter(max_retries=retry))
     while True:
         try:
             download()
