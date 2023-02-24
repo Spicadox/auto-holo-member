@@ -13,7 +13,7 @@ def download(videos):
         if platform.system() == "Windows":
             # /c - close console after execution
             command_list = ['start', f'auto-youtube-member {video_id}', '/min', 'cmd', '/c']
-            command_list += ['ytarchive.exe', '-v', '--cookies', const.COOKIE, '-o',
+            command_list += ['ytarchive.exe', '-v', '--mkv', '--cookies', const.COOKIE, '-o',
                              const.DOWNLOAD,
                              '--add-metadata', '-t', '--vp9', '--write-description', '--write-thumbnail', '--threads', '2',
                              '-w']
@@ -21,7 +21,7 @@ def download(videos):
         else:
             # else if it's a Linux system
             command_list = ['lxterminal', '-e', 'python3']
-            command_list += ['ytarchive.exe', '-o', const.DOWNLOAD,
+            command_list += ['ytarchive.exe', '--mkv', '-o', const.DOWNLOAD,
                              '--add-metadata', '-t', '--ipv6', '--vp9', '--write-description', '--write-thumbnail',
                              '--threads', '1',
                              '-w']
